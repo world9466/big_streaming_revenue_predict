@@ -25,7 +25,8 @@ yt_data_model = yt_data[[
     'Watch Page ads (USD)',
     'Estimated revenue (USD)',
     'Impressions',
-    'Impressions click-through rate (%)'
+    'Impressions click-through rate (%)',
+    'Watch time (hours)'
     ]]
 
 # 修改欄位名稱
@@ -35,7 +36,8 @@ yt_data_model = yt_data_model.rename(columns={
     'Watch Page ads (USD)':'ads',
     'Estimated revenue (USD)':'total_revenue',
     'Impressions':'imps',
-    'Impressions click-through rate (%)':'CTR'})
+    'Impressions click-through rate (%)':'CTR',
+    'Watch time (hours)':'watch_time'})
 
 # 用總觀看數減去因為曝光點擊而來的次數，來評比大直播的非YT曝光收看成績
 not_imp = yt_data['Views'] - round(yt_data_model['imps'] * yt_data_model['CTR']*0.01,0)

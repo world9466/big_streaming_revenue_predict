@@ -11,6 +11,7 @@ from sklearn.metrics import mean_absolute_error
 from math import sqrt
 from xgboost import XGBRegressor
 from sklearn.multioutput import MultiOutputRegressor
+from sklearn.model_selection import GridSearchCV
 
 
 # 讀取處理好(去除不合理的項目)的資料，空位都補成0，processed_data已經把要預測的5月份去掉
@@ -370,7 +371,8 @@ for target in ['Premium','Transaction','ads']:
     print()
     print('----------------------------------')
 
-
+import os
+os._exit(0)
 # 計算總收益誤差
 
 # 先加原始及預測的總收益

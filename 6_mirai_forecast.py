@@ -13,17 +13,17 @@ data = pd.read_excel('origin_data/origin_data.xlsx')
 data_1 = data.head(-15)
 
 # 把預測目標提取出來做新的特徵
-var_table = data_1[['imps','CTR','not_imp']]
+var_table = data_1[['imps','CTR','watch_time','not_imp']]
 
 # 迭代15天，也可以更久只是會越來越不準
 for num in range(15):
 
     # 製作7日移動平均線，及7日內最大值當作特徵，重新命名欄位
     mavg_7d = var_table.rolling(window=7).mean()
-    mavg_7d.columns=['imps_mavg','CTR_mavg','not_imp_mavg']
+    mavg_7d.columns=['imps_mavg','CTR_mavg','watch_time_mavg','not_imp_mavg']
 
     max_7d = var_table.rolling(window=7).max()
-    max_7d.columns=['imps_max','CTR_max','not_imp_max']
+    max_7d.columns=['imps_max','CTR_max','watch_time_max','not_imp_max']
     
     # 合併特徵
     future_table = mavg_7d.join(max_7d,rsuffix = 'repeated')
@@ -31,14 +31,14 @@ for num in range(15):
 
     # 準備預測的日期特徵，隨著迭代推進要預測的日期
     data_2 = data.head(-15+num).drop([
-        'Date','Premium','Transaction','ads','total_revenue','imps','CTR','not_imp','月底到月初'
+        'Date','Premium','Transaction','ads','total_revenue','imps','CTR','watch_time','not_imp','月底到月初'
         ],axis=1)
 
     # 把空值補為0，重設index避免join錯誤
     data_2.fillna(value = 0 ,inplace=True)
     data_2 = data_2.reset_index(drop = True)
 
-    # 把前6筆沒有7日平均數的資料刪掉
+    # 合併future_table，把前6筆沒有7日平均數的資料刪掉
     x = data_2.join(future_table,rsuffix = 'repeated').tail(-6)
 
     # 資料標準化
@@ -53,7 +53,7 @@ for num in range(15):
         pred = xgbr.predict(x.tail(1))
 
     pred = pd.DataFrame(pred)
-    pred.columns=['imps','CTR','not_imp']
+    pred.columns=['imps','CTR','watch_time','not_imp']
 
     var_table = pd.concat([var_table,pred],ignore_index = True)
 
@@ -62,7 +62,7 @@ for num in range(15):
 
 # 建立最終預測用特徵資料，把NaN取代為0
 final_data = var_table.join(data.drop([
-        'Date','Premium','Transaction','ads','total_revenue','imps','CTR','not_imp'
+        'Date','Premium','Transaction','ads','total_revenue','imps','CTR','watch_time','not_imp'
         ],axis=1))
 final_data.fillna(value = 0 ,inplace=True)
 
@@ -73,7 +73,7 @@ scaler.fit(final_data)
 final_data = pd.DataFrame(data=scaler.transform(final_data),columns=final_data.columns, index=final_data.index)
 
 
-# 載入特徵資料
+# 將特徵輸入到建立好的模型
 with open('model/XGBOOST_muti.pickle','rb') as f:
     xgbr = pickle.load(f)
     final_pred = xgbr.predict(final_data)
