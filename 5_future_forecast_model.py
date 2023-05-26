@@ -1,11 +1,12 @@
+import os,time
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import mean_squared_error
-from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_squared_error,mean_absolute_error,make_scorer, r2_score
 from xgboost import XGBRegressor
 from sklearn.multioutput import MultiOutputRegressor
+from sklearn.model_selection import GridSearchCV,RandomizedSearchCV
 
 # 讀取原始資料，把要預測的5月份去掉
 data_1 = pd.read_excel('origin_data/origin_data.xlsx').head(-15)
@@ -65,23 +66,54 @@ x = pd.DataFrame(data=scaler.transform(x),columns=x.columns, index=x.index)
 X_train, X_test, y_train, y_test = train_test_split(x, y,test_size=0.25, random_state=30)
 
 # 建立 XGBOOST 模型
-xgbr = XGBRegressor(
-    learning_rate= 0.1,              # 每個迭代的學習率
-    n_estimators = 200,               # 子模型數量，預設為100
-    max_depth = 10,                   # 決策樹深度，預設為3
-    min_child_weight = 3,
-    gamma = 0,
-    subsample = 0.8,
-    colsample_bytree = 0.8,
-    objective = 'reg:squarederror',  # reg:squarederror、reg:linear(不推薦用)、binary:logistic
-    reg_lambda = 0,
-    reg_alpha = 0,
-    nthread = 4,
-    scale_pos_weight = 1,
-    seed = 169
-)
+xgbr = XGBRegressor()
+
+# 模型參數前面一定要加上 estimator__
+param_grid = {
+    'estimator__learning_rate':np.arange(0.05,0.11,0.01), # 學習率0.05~0.10，遞增值為0.01
+    'estimator__n_estimators':range(30,100),              # 決策樹(子模型)數量，預設為100
+    'estimator__max_depth':range(4,9),                    # 決策樹深度，預設為3
+    'estimator__min_child_weight':[3],
+    'estimator__gamma':[0],
+    'estimator__subsample':[0.8],
+    'estimator__colsample_bytree':[0.8],
+    'estimator__objective':['reg:squarederror'],
+    'estimator__reg_lambda':[0],
+    'estimator__reg_alpha':[0],
+    'estimator__nthread':[4],
+    'estimator__scale_pos_weight':[1],
+    'estimator__seed':[168]
+    }
 
 # 多輸出回歸，採用XGBOOST
+mogr = MultiOutputRegressor(xgbr)
+
+# 修改GridSearchCV的評估指標
+scorer = make_scorer(r2_score)
+
+# 將模型套入grid_search(網格搜尋)，交叉驗證的k值(cv)設為5，評估指標使用決定係數r2
+grid_search = GridSearchCV(estimator=mogr , param_grid=param_grid,cv=5 , scoring=scorer)
+
+# 訓練時間太久可以試試RandomizeSearchCV()，n_iter可以指定隨機比數
+#grid_search = RandomizedSearchCV(estimator=mogr , param_grid=param_grid,cv=5 , scoring=scorer , n_iter=10)
+
+# 使用訓練組開始訓練
+print('開始搜尋最佳參數值...(如果時間太久可以試著啟用RandomizeSearchCV())')
+start = time.time()
+
+grid_search.fit(X_train, y_train)
+
+end = time.time()
+print('資料計算共耗時',round(end - start,2),'秒')
+# 列出最好的參數組合及分數
+print("Best parameters found: ", grid_search.best_params_)
+print("Best score(決定係數): ", grid_search.best_score_)
+
+# 取出最佳參數，把字典的key前綴estimator__刪除，不然無法代入xgboost
+best_params = {key.replace("estimator__", ""): value for key, value in grid_search.best_params_.items()}
+
+# 代入xgboost模型進行多輸出訓練
+xgbr = XGBRegressor(**best_params)
 mogr = MultiOutputRegressor(xgbr).fit(X_train, y_train)
 
 
