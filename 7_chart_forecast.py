@@ -3,17 +3,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-########## 原始資料對比 ##########
+########## 原始及預測資料對比 ##########
 
 table = pd.read_excel('output/future_pred.xlsx')
 table['Date'] = pd.to_datetime(table['Date'])
 
 # 區分訓練部分和預測部分
 table_before = table[['Date','pred_revenue']]
-table_before.loc[table_before['Date'] > '2023-04-30','pred_revenue'] = np.NaN
+table_before.loc[table_before['Date'] > '2023-07-15','pred_revenue'] = np.NaN
 
 table_after = table[['Date','pred_revenue']]
-table_after.loc[table_after['Date'] < '2023-04-30','pred_revenue'] = np.NaN
+table_after.loc[table_after['Date'] < '2023-07-15','pred_revenue'] = np.NaN
 
 # 決定x軸及y軸
 x = table['Date']

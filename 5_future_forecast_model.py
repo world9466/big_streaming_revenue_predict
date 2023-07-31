@@ -7,9 +7,10 @@ from sklearn.metrics import mean_squared_error,mean_absolute_error,make_scorer, 
 from xgboost import XGBRegressor
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.model_selection import GridSearchCV,RandomizedSearchCV
+from tqdm import tqdm
 
-# 讀取原始資料，把要預測的5月份去掉
-data_1 = pd.read_excel('origin_data/origin_data.xlsx').head(-15)
+# 讀取原始資料，把要預測的日期去掉
+data_1 = pd.read_excel('origin_data/origin_data.xlsx').head(-169)
 
 # 把預測目標提取出來做新的特徵
 var_table = data_1[['imps','CTR','watch_time','not_imp']]
@@ -71,7 +72,7 @@ xgbr = XGBRegressor()
 # 模型參數前面一定要加上 estimator__
 param_grid = {
     'estimator__learning_rate':np.arange(0.05,0.11,0.01), # 學習率0.05~0.10，遞增值為0.01
-    'estimator__n_estimators':range(30,100),              # 決策樹(子模型)數量，預設為100
+    'estimator__n_estimators':range(30,100,5),              # 決策樹(子模型)數量，預設為100
     'estimator__max_depth':range(4,9),                    # 決策樹深度，預設為3
     'estimator__min_child_weight':[3],
     'estimator__gamma':[0],
@@ -97,11 +98,28 @@ grid_search = GridSearchCV(estimator=mogr , param_grid=param_grid,cv=5 , scoring
 # 訓練時間太久可以試試RandomizeSearchCV()，n_iter可以指定隨機比數
 #grid_search = RandomizedSearchCV(estimator=mogr , param_grid=param_grid,cv=5 , scoring=scorer , n_iter=10)
 
+
+# 獲取要搜索的參數組合的總數
+total_combinations = len(param_grid)
+
+
 # 使用訓練組開始訓練
 print('開始搜尋最佳參數值...(如果時間太久可以試著啟用RandomizeSearchCV())')
 start = time.time()
 
-grid_search.fit(X_train, y_train)
+################################################
+# 使用tqdm來創建進度條
+for i, params in enumerate(tqdm(param_grid, desc="Grid Search Progress")):
+    # 開始訓練
+    grid_search.fit(X_train, y_train)
+
+    # 輸出當前參數組合的結果
+    print(f"Params: {params}, Best score (R^2): {grid_search.best_score_}")
+
+    # 更新進度條
+    tqdm.write(f"Progress: {i+1}/{total_combinations} ({((i+1)/total_combinations)*100:.2f}%)")
+
+################################################
 
 end = time.time()
 print('資料計算共耗時',round(end - start,2),'秒')

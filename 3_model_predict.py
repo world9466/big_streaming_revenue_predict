@@ -3,8 +3,8 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 import pickle
 
-# 讀取處理好的數據，空位都補成0
-data = pd.read_excel('origin_data/origin_data.xlsx').head(-15)
+# 讀取處理好的數據，空位都補成0，把沒有實際數據的日期資料用head()刪除
+data = pd.read_excel('origin_data/origin_data.xlsx').head(-169)
 data.fillna(value = 0 ,inplace=True)
 
 # 刪除不必要的欄位
