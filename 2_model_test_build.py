@@ -4,8 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split
-from sklearn.neural_network import MLPRegressor
-from sklearn.svm import LinearSVC,SVC
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error,mean_absolute_error,make_scorer, r2_score
@@ -15,8 +13,13 @@ from sklearn.multioutput import MultiOutputRegressor
 from sklearn.model_selection import GridSearchCV,RandomizedSearchCV
 
 
-# 讀取處理好(去除不合理的項目)的資料，空位都補成0，processed_data已經把要預測的5月份去掉
-data = pd.read_excel('processed_data/processed_data.xlsx')
+# 可以建立processed_data將不合理的資料刪除，或是直接取用origin_data.xlsx，空位都補成0
+data_path = 'processed_data/processed_data.xlsx'
+if os.path.isfile(data_path):
+    data = pd.read_excel('processed_data/processed_data.xlsx')
+else:
+    data = pd.read_excel('origin_data/origin_data.xlsx')
+
 data.fillna(value = 0 ,inplace=True)
 
 
@@ -76,7 +79,7 @@ xgbr = XGBRegressor()
 # 模型參數前面一定要加上 estimator__，已經找過最佳參數，所以範圍已經限縮過
 param_grid = {
     'estimator__learning_rate':np.arange(0.05,0.11,0.01), # 學習率0.05~0.10，遞增值為0.01
-    'estimator__n_estimators':[68],              # 決策樹(子模型)數量，預設為100
+    'estimator__n_estimators':range(30,80),              # 決策樹(子模型)數量，預設為100
     'estimator__max_depth':[6],                    # 決策樹深度，預設為3
     'estimator__min_child_weight':[3],
     'estimator__gamma':[0],
@@ -97,13 +100,13 @@ mogr = MultiOutputRegressor(xgbr)
 scorer = make_scorer(r2_score)
 
 # 將模型套入grid_search(網格搜尋)，交叉驗證的k值(cv)設為5，評估指標使用決定係數r2
-grid_search = GridSearchCV(estimator=mogr , param_grid=param_grid, cv=5 , scoring=scorer)
+#grid_search = GridSearchCV(estimator=mogr , param_grid=param_grid, cv=5 , scoring=scorer)
 
 # 訓練時間太久可以試試RandomizeSearchCV()，n_iter可以指定隨機筆數
-#grid_search = RandomizedSearchCV(estimator=mogr , param_grid=param_grid,cv=5 , scoring=scorer , n_iter=10)
+grid_search = RandomizedSearchCV(estimator=mogr , param_distributions=param_grid,cv=5 , scoring=scorer , n_iter=20)
 
 # 使用訓練組開始訓練
-print('開始搜尋最佳參數值...(如果時間太久可以試著啟用RandomizeSearchCV()')
+print('開始搜尋最佳參數值...如果時間太久可以試著啟用RandomizeSearchCV()')
 start = time.time()
 
 grid_search.fit(X_train, y_train)
@@ -206,7 +209,10 @@ for target in ['Premium','Transaction','ads']:
 
     y_list = []
     for value in y_test[target]:
-        y_list.append(value)
+        if value != 0:            # 若預測值為 0，則取代為 1 避免出現分母出現 0
+            y_list.append(value)
+        else:
+            y_list.append(1)
 
     #y_list = np.array(y_list) # 若沒有把計算結果轉為dataframe，要啟用此列
 
@@ -237,8 +243,9 @@ for target in ['Premium','Transaction','ads']:
 
 # 計算總收益誤差
 
-# 先加原始及預測的總收益
+# 先加原始及預測的總收益，為避免分母為0出現無限大的數字，取代0為1
 total_y_test = y_test['Premium']+y_test['Transaction']+y_test['ads']
+total_y_test[total_y_test == 0] = 1
 total_y_pred = y_pred_Mu_test['Premium']+y_pred_Mu_test['Transaction']+y_pred_Mu_test['ads']
 
 # 轉換為陣列進行運算

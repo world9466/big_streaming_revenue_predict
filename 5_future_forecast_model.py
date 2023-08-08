@@ -72,7 +72,7 @@ xgbr = XGBRegressor()
 # 模型參數前面一定要加上 estimator__
 param_grid = {
     'estimator__learning_rate':np.arange(0.05,0.11,0.01), # 學習率0.05~0.10，遞增值為0.01
-    'estimator__n_estimators':range(30,100,5),              # 決策樹(子模型)數量，預設為100
+    'estimator__n_estimators':range(30,100),              # 決策樹(子模型)數量，預設為100
     'estimator__max_depth':range(4,9),                    # 決策樹深度，預設為3
     'estimator__min_child_weight':[3],
     'estimator__gamma':[0],
@@ -93,10 +93,10 @@ mogr = MultiOutputRegressor(xgbr)
 scorer = make_scorer(r2_score)
 
 # 將模型套入grid_search(網格搜尋)，交叉驗證的k值(cv)設為5，評估指標使用決定係數r2
-grid_search = GridSearchCV(estimator=mogr , param_grid=param_grid,cv=5 , scoring=scorer)
+#grid_search = GridSearchCV(estimator=mogr , param_grid=param_grid,cv=5 , scoring=scorer)
 
 # 訓練時間太久可以試試RandomizeSearchCV()，n_iter可以指定隨機比數
-#grid_search = RandomizedSearchCV(estimator=mogr , param_grid=param_grid,cv=5 , scoring=scorer , n_iter=10)
+grid_search = RandomizedSearchCV(estimator=mogr , param_distributions=param_grid,cv=5 , scoring=scorer , n_iter=20)
 
 
 # 獲取要搜索的參數組合的總數
@@ -182,7 +182,11 @@ for target in ['imps','CTR','watch_time','not_imp']:
 
     y_list = []
     for value in y_test[target]:
-        y_list.append(value)
+        if value != 0:            # 若預測值為 0，則取代為 1 避免出現分母出現 0
+            y_list.append(value)
+        else:
+            y_list.append(1)
+
 
     #y_list = np.array(y_list) # 若沒有把計算結果轉為dataframe，要啟用此列
 
